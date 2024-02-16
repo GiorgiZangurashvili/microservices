@@ -6,11 +6,13 @@ import com.zangura.mapper.OrderLineItemsMapper;
 import com.zangura.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Transactional
 public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderLineItemsMapper orderLineItemsMapper;

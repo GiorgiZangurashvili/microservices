@@ -25,7 +25,7 @@ public class DataInitializer implements CommandLineRunner {
 
         Inventory hp = new Inventory();
         hp.setSkuCode("hp_pavilion_dv7");
-        hp.setQuantity(50);
+        hp.setQuantity(0);
 
         inventoryRepository.save(lenovo);
         inventoryRepository.save(hp);

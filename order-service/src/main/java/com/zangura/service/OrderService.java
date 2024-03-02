@@ -25,7 +25,7 @@ public class OrderService {
     private final OrderLineItemsMapper orderLineItemsMapper;
     private final WebClient.Builder webClientBuilder;
 
-    public void placeOrder(OrderRequest orderRequest) {
+    public String placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
         order.setOrderNumber(UUID.randomUUID().toString());
         order.setOrderLineItemsList(orderLineItemsMapper
@@ -52,6 +52,7 @@ public class OrderService {
 
         if (isInStock) {
             orderRepository.save(order);
+            return "Order placed successfully";
         } else {
             throw new ItemNotInStockException();
         }

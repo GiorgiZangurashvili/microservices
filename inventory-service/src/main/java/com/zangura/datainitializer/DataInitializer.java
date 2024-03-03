@@ -14,7 +14,7 @@ public class DataInitializer implements CommandLineRunner {
 
 
     @Override
-    public void run(String... args) throws Exception {
+    public void run(String... args) {
         if (inventoryRepository.count() != 0) {
             return;
         }

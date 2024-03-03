@@ -8,6 +8,9 @@ import com.zangura.exception.ItemNotInStockException;
 import com.zangura.mapper.OrderLineItemsMapper;
 import com.zangura.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cloud.sleuth.Span;
+import org.springframework.cloud.sleuth.Tracer;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -20,10 +23,12 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class OrderService {
     private final OrderRepository orderRepository;
     private final OrderLineItemsMapper orderLineItemsMapper;
     private final WebClient.Builder webClientBuilder;
+    private final Tracer tracer;
 
     public String placeOrder(OrderRequest orderRequest) {
         Order order = new Order();
@@ -37,24 +42,32 @@ public class OrderService {
                 .map(OrderLineItems::getSkuCode)
                 .collect(Collectors.toList());
 
-        InventoryResponse[] inventoryResponses = webClientBuilder
-                .build()
-                .get()
-                .uri("http://inventory-service/api/inventory",
-                        uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodes).build())
-                .retrieve()
-                .bodyToMono(InventoryResponse[].class)
-                .block();
+        log.info("Calling inventory-service from order-service");
 
-        boolean isInStock = Arrays
-                .stream(inventoryResponses)
-                .allMatch(InventoryResponse::isInStock);
+        Span inventoryServiceCheckSpan = tracer.nextSpan().name("InventoryServiceCheckSpan");
 
-        if (isInStock) {
-            orderRepository.save(order);
-            return "Order placed successfully";
-        } else {
-            throw new ItemNotInStockException();
+        try (Tracer.SpanInScope spanInScope = tracer.withSpan(inventoryServiceCheckSpan.start())) {
+            InventoryResponse[] inventoryResponses = webClientBuilder
+                    .build()
+                    .get()
+                    .uri("http://inventory-service/api/inventory",
+                            uriBuilder -> uriBuilder.queryParam("skuCodes", skuCodes).build())
+                    .retrieve()
+                    .bodyToMono(InventoryResponse[].class)
+                    .block();
+
+            boolean isInStock = Arrays
+                    .stream(inventoryResponses)
+                    .allMatch(InventoryResponse::isInStock);
+
+            if (isInStock) {
+                orderRepository.save(order);
+                return "Order placed successfully";
+            } else {
+                throw new ItemNotInStockException();
+            }
+        } finally {
+            inventoryServiceCheckSpan.end();
         }
     }
 }
